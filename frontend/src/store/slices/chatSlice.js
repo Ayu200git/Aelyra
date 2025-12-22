@@ -14,7 +14,7 @@ export const fetchChats = createAsyncThunk(
     }
     
     try {
-      const promise = api.get('/chat/history', {
+      const promise = api.get('/api/chat/history', {
         params: {
           ...(trimmedSearch ? { q: trimmedSearch } : {}),
           page,
@@ -49,7 +49,7 @@ export const createChat = createAsyncThunk(
   'chat/createChat',
   async ({ title = 'New Chat' }, { rejectWithValue }) => {
     try {
-      const response = await api.post('/chat/create', { title });
+      const response = await api.post('/api/chat/create', { title });
       const chat = response.data.data?.chat || response.data.chat;
       return { ...chat, id: chat._id || chat.id };
     } catch (error) {
@@ -87,7 +87,7 @@ export const updateChat = createAsyncThunk(
   'chat/updateChat',
   async ({ chatId, updates }, { rejectWithValue }) => {
     try {
-      const response = await api.patch(`/chat/${chatId}`, updates);
+      const response = await api.patch(`/api/chat/${chatId}`, updates);
       const chat = response.data.data?.chat || response.data.chat;
       return { ...chat, id: chat._id || chat.id };
     } catch (error) {
@@ -100,7 +100,7 @@ export const toggleStarChat = createAsyncThunk(
   'chat/toggleStarChat',
   async ({ chatId, isStarred }, { rejectWithValue }) => {
     try {
-      const response = await api.patch(`/chat/${chatId}`, { isStarred });
+      const response = await api.patch(`/api/chat/${chatId}`, { isStarred });
       const chat = response.data.data?.chat || response.data.chat;
       return { ...chat, id: chat._id || chat.id };
     } catch (error) {
@@ -113,7 +113,7 @@ export const shareChat = createAsyncThunk(
   'chat/shareChat',
   async (chatId, { rejectWithValue }) => {
     try {
-      const response = await api.post(`/chat/${chatId}/share`);
+      const response = await api.post(`/api/chat/${chatId}/share`);
       const shareData = response.data.data || response.data;
       return { chatId, ...shareData };
     } catch (error) {
@@ -126,7 +126,7 @@ export const unshareChat = createAsyncThunk(
   'chat/unshareChat',
   async (chatId, { rejectWithValue }) => {
     try {
-      await api.delete(`/chat/${chatId}/share`);
+      await api.delete(`/api/chat/${chatId}/share`);
       return { chatId };
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || 'Failed to unshare chat');
@@ -157,8 +157,8 @@ export const sendMessage = createAsyncThunk(
         body = JSON.stringify({ message, chatId });
       }
 
-      const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-      const response = await fetch(`${API_BASE_URL}/chat/send`, {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      const response = await fetch(`${API_BASE_URL}/api/chat/send`, {
         method: 'POST',
         credentials: 'include',
         headers,
