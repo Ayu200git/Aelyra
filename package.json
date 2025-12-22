@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "cd frontend && npm run build",
+     "build": "echo 'Skipping root build on Railway",
     "install-all": "npm install && cd frontend && npm install"
   },
   "dependencies": {
