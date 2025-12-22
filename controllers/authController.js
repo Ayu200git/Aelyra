@@ -24,9 +24,9 @@ export const register = async (req, res, next) => {
       .status(StatusCodes.CREATED)
       .cookie('token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        secure: true,
+        sameSite: 'none',
+        maxAge: 7 * 24 * 60 * 60 * 1000, 
       })
       .json({
         success: true,
@@ -72,8 +72,8 @@ export const login = async (req, res, next) => {
         Date.now() + (process.env.JWT_COOKIE_EXPIRE || 30) * 24 * 60 * 60 * 1000
       ),
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
     };
 
     res
@@ -112,9 +112,12 @@ export const getMe = async (req, res, next) => {
 export const logout = async (req, res, next) => {
   try {
     res.cookie('token', 'none', {
-      expires: new Date(Date.now() + 10 * 1000),
-      httpOnly: true,
+    expires: new Date(0),
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
     });
+
 
     res.status(StatusCodes.OK).json({
       success: true,
