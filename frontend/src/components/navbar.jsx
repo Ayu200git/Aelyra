@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./themeToggle";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
 import { logout } from "@/store/slices/authSlice";
-import { resetChats, toggleSidebar } from "@/store/slices/chatSlice";
+import { resetChats, setSidebarOpen, toggleSidebar } from "@/store/slices/chatSlice";
 import { useState, useEffect, useRef } from "react";
 
 export default function Navbar() {
@@ -69,9 +69,9 @@ export default function Navbar() {
               >
                 {user?.avatar ? (
                   <img
-                    src={user.avatar}
-                    alt={user.name || user.email}
-                    className="w-6 h-6 rounded-full object-cover"
+                    src={user?.profileImage ? `data:image/png;base64,${user.profileImage}` : defaultProfileIcon}
+                    alt="Profile"
+                    className="w-8 h-8 rounded-full object-cover"
                   />
                 ) : (
                   <User className="w-5 h-5" />

@@ -23,7 +23,6 @@ const PORT = process.env.PORT || 8080;
 // Connect to MongoDB
 connectDB();
 
-// Middleware
 app.use(helmet());
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -35,26 +34,24 @@ app.use(cookieParser());
 app.use(compression());
 app.use(mongoSanitize());
 
-// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000, 
+  max: 100, 
   message: 'Too many requests from this IP, please try again after 15 minutes',
 });
 app.use('/api', limiter);
 
-// Logging
+ 
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Routes
+//routes
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/image', imageRoutes);
 
-// Debug route to check if auth routes are working
 app.get('/api/debug/routes', (req, res) => {
   res.json({
     message: 'Debug endpoint - Server is running',
@@ -64,8 +61,7 @@ app.get('/api/debug/routes', (req, res) => {
     }
   });
 });
-
-// Health check endpoint
+ 
 app.get('/api/health', (req, res) => {
   res.status(StatusCodes.OK).json({
     status: 'success',
@@ -74,7 +70,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Handle 404
+ 
 app.all('*', (req, res) => {
   res.status(StatusCodes.NOT_FOUND).json({
     status: 'fail',
@@ -82,22 +78,27 @@ app.all('*', (req, res) => {
   });
 });
 
-// Error handling middleware
 app.use(errorHandler);
 
-// Start server
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  res.status(err.statusCode || 500).json({
+    success: false,
+    error: err.message || 'Server Error',
+  });
+});
+
+//running server
 const server = app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
 });
 
-// Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   logger.error(`Unhandled Rejection: ${err.message}`);
   logger.error(err.stack);
   server.close(() => process.exit(1));
 });
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   logger.error(`Uncaught Exception: ${err.message}`);
   logger.error(err.stack);

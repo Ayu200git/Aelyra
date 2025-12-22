@@ -7,7 +7,6 @@ const apiCall = async (endpoint, options = {}) => {
     ...options.headers,
   };
 
-  // Remove Content-Type for FormData
   if (options.body instanceof FormData) {
     delete headers['Content-Type'];
   }
@@ -34,7 +33,7 @@ const apiCall = async (endpoint, options = {}) => {
   }
 };
 
-// Create axios-like API client for compatibility
+//api client
 const api = {
   get: async (endpoint, config = {}) => {
     const url = config.params 
@@ -149,7 +148,7 @@ const api = {
   },
 };
 
-// Auth APIs
+//api for authentication
 export const authAPI = {
   register: (data) => apiCall('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
   login: (data) => apiCall('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
@@ -159,7 +158,7 @@ export const authAPI = {
   resetPassword: (data) => apiCall('/auth/reset-password', { method: 'POST', body: JSON.stringify(data) }),
 };
 
-// Chat APIs
+// api for chats
 export const chatAPI = {
   createChat: (data) => apiCall('/chat/create', { method: 'POST', body: JSON.stringify(data) }),
   getChatHistory: () => apiCall('/chat/history'),
@@ -170,12 +169,12 @@ export const chatAPI = {
   getSharedChat: (token) => apiCall(`/chat/shared/${token}`),
 };
 
-// Image APIs
+// api for image
 export const imageAPI = {
   generateImage: (prompt) => apiCall('/image/generate', { method: 'POST', body: JSON.stringify({ prompt }) }),
 };
 
-// User APIs
+// api for user
 export const userAPI = {
   getProfile: () => apiCall('/user/profile'),
   updateProfile: (data) => apiCall('/user/profile', { method: 'PUT', body: JSON.stringify(data) }),

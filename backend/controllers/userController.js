@@ -4,11 +4,7 @@ import { logger } from '../utils/logger.js';
 import sendEmail from '../utils/email.js';
 import crypto from 'crypto';
 
-/**
- * @desc    Get current user profile
- * @route   GET /api/user/profile
- * @access  Private
- */
+//get user's profile
 export const getProfile = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
@@ -22,11 +18,7 @@ export const getProfile = async (req, res, next) => {
   }
 };
 
-/**
- * @desc    Update user profile
- * @route   PUT /api/user/profile
- * @access  Private
- */
+//update user's profile
 export const updateProfile = async (req, res, next) => {
   try {
     const { name, email } = req.body;
@@ -34,9 +26,8 @@ export const updateProfile = async (req, res, next) => {
 
     if (name) fieldsToUpdate.name = name;
     
-    // If email is being updated, we need to handle verification
+     
     if (email && email !== req.user.email) {
-      // Check if email is already taken
       const existingUser = await User.findOne({ email });
       if (existingUser) {
         return res.status(StatusCodes.BAD_REQUEST).json({
@@ -45,19 +36,16 @@ export const updateProfile = async (req, res, next) => {
         });
       }
       
-      // Set new email and mark as unverified
       fieldsToUpdate.email = email;
       fieldsToUpdate.isVerified = false;
       
-      // Generate new verification token
       const verificationToken = crypto.randomBytes(20).toString('hex');
       fieldsToUpdate.verificationToken = crypto
         .createHash('sha256')
         .update(verificationToken)
         .digest('hex');
       fieldsToUpdate.verificationTokenExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-      
-      // Send verification email
+
       const verificationUrl = `${req.protocol}://${req.get('host')}/api/auth/verify-email/${verificationToken}`;
       
       await sendVerificationEmail(email, verificationUrl);
@@ -81,16 +69,10 @@ export const updateProfile = async (req, res, next) => {
   }
 };
 
-/**
- * @desc    Update user password
- * @route   PUT /api/user/update-password
- * @access  Private
- */
+//update password
 export const updatePassword = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id).select('+password');
-    
-    // Check current password
     const isMatch = await user.matchPassword(req.body.currentPassword);
     if (!isMatch) {
       return res.status(StatusCodes.UNAUTHORIZED).json({
@@ -98,12 +80,8 @@ export const updatePassword = async (req, res, next) => {
         error: 'Current password is incorrect',
       });
     }
-    
-    // Set new password
     user.password = req.body.newPassword;
     await user.save();
-    
-    // Send password change notification email
     try {
       await sendEmail({
         email: user.email,
@@ -112,7 +90,6 @@ export const updatePassword = async (req, res, next) => {
       });
     } catch (error) {
       logger.error(`Password change notification email failed: ${error.message}`);
-      // Don't fail the request if email sending fails
     }
     
     res.status(StatusCodes.OK).json({
@@ -124,22 +101,17 @@ export const updatePassword = async (req, res, next) => {
   }
 };
 
-/**
- * @desc    Delete user account
- * @route   DELETE /api/user/delete-account
- * @access  Private
- */
+//delete user profile
 export const deleteAccount = async (req, res, next) => {
   try {
-    // Remove user (this will trigger the pre-remove middleware to delete associated chats)
-    await User.findByIdAndDelete(req.user.id);
-    
-    // Clear the token cookie
+    const user = await User.findById(req.user.id);
+    if (user) {
+      await user.deleteOne();  
+    }
     res.cookie('token', 'none', {
-      expires: new Date(Date.now() + 10 * 1000), // 10 seconds
+      expires: new Date(Date.now() + 10 * 1000),
       httpOnly: true,
     });
-    
     res.status(StatusCodes.OK).json({
       success: true,
       message: 'Your account has been permanently deleted',
@@ -149,7 +121,41 @@ export const deleteAccount = async (req, res, next) => {
   }
 };
 
-// Helper function to send verification email
+
+export const uploadProfileImage = async (req, res, next) => {
+  try {
+    const { image } = req.body;
+    if (!image) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ success: false, error: 'No image provided' });
+    }
+    const sizeInBytes = Math.ceil((image.length * 3) / 4);
+    if (sizeInBytes > 200 * 1024) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ success: false, error: 'Image too large (max 200KB)' });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { profileImage: image },
+      { new: true, runValidators: true }
+    ).select('-password');
+    res.status(StatusCodes.OK).json({ success: true, data: user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteProfileImage = async (req, res, next) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { profileImage: "" },
+      { new: true, runValidators: true }
+    ).select('-password');
+    res.status(StatusCodes.OK).json({ success: true, data: user });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const sendVerificationEmail = async (email, verificationUrl) => {
   const message = `Please verify your new email by clicking on the link: \n\n ${verificationUrl} \n\n If you did not request this change, please secure your account.`;
   

@@ -18,8 +18,8 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] md:h-screen w-full overflow-hidden">
-      <ChatSidebar />
+     <div className="flex flex-col md:flex-row h-full w-full overflow-hidden">
+      <ChatSidebar/>
       <div className="flex-1 flex flex-col min-h-0">
         <ChatArea />
       </div>

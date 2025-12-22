@@ -31,33 +31,28 @@ export const createChat = async (req, res) => {
   }
 };
 
+//chat history
 export const getChatHistory = async (req, res) => {
   try {
     const userId = req.user.id || req.user._id;
-    const { q, page = 1, limit = 20 } = req.query; // Pagination params
+    const { q, page = 1, limit = 20 } = req.query;  
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
     
     let query = { user: userId };
-    
-    // If search query provided, use text search
     if (q && q.trim()) {
       query.$text = { $search: q.trim() };
     }
     
-    // Get total count for pagination
     const totalCount = await Chat.countDocuments(query);
-    
-    // Fetch chats with pagination
     const chats = await Chat.find(query)
       .sort(q ? { score: { $meta: 'textScore' } } : { updatedAt: -1 })
       .select('title messages updatedAt createdAt isStarred isShared shareToken')
       .skip(skip)
       .limit(limitNum)
-      .lean(); // Use lean() for better performance
+      .lean();
 
-    // Get preview from last message and format response
     const chatsWithPreview = chats.map(chat => {
       const lastMessage = chat.messages && chat.messages.length > 0 
         ? chat.messages[chat.messages.length - 1]
@@ -72,7 +67,6 @@ export const getChatHistory = async (req, res) => {
         isShared: chat.isShared || false,
         shareToken: chat.shareToken,
         preview: lastMessage ? lastMessage.content?.substring(0, 100) : null,
-        // Don't include messages array to reduce payload size
       };
     });
 
@@ -129,7 +123,6 @@ export const getChat = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
   try {
-    // Handle both JSON and FormData (FormData will be parsed by express.json or multer)
     const { chatId, message, image } = req.body;
     const userId = req.user.id || req.user._id;
 
@@ -141,8 +134,6 @@ export const sendMessage = async (req, res) => {
     }
 
     let chat = await Chat.findOne({ _id: chatId, user: userId });
-    
-    // Create new chat if chatId not provided or not found
     if (!chat) {
       if (chatId) {
         return res.status(StatusCodes.NOT_FOUND).json({
@@ -157,13 +148,10 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Add user message
     const userMessage = {
       role: 'user',
       content: message.trim(),
     };
-    
-    // Handle image if provided (URL or base64)
     if (image) {
       userMessage.images = [{ url: image }];
     }
@@ -172,29 +160,51 @@ export const sendMessage = async (req, res) => {
 
     // Generate AI response
     try {
-      const aiResponseResult = await generateResponse(chat.messages);
-      
-      if (!aiResponseResult.success) {
-        logger.error(`AI response error: ${aiResponseResult.error}`);
-        return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-          success: false,
-          error: aiResponseResult.message || 'Failed to generate response',
-        });
-      }
+  const aiResponseResult = await generateResponse(chat.messages);
 
-      chat.messages.push({
-        role: 'assistant',
-        content: aiResponseResult.message,
-      });
-    } catch (error) {
-      logger.error(`AI generation error: ${error.message}`);
-      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        error: 'Failed to generate AI response',
-      });
-    }
+  let aiMessage = null;
+  if (typeof aiResponseResult === 'string') {
+    aiMessage = aiResponseResult;
+  } else if (aiResponseResult?.message) {
+    aiMessage = aiResponseResult.message;
+  } else if (aiResponseResult?.choices?.[0]?.message?.content) {
+    aiMessage = aiResponseResult.choices[0].message.content;
+  }
 
-    // Generate title if this is the first exchange (2 messages: user + assistant)
+  if (!aiMessage) {
+    throw new Error(`Invalid AI response: ${JSON.stringify(aiResponseResult)}`);
+  }
+
+  chat.messages.push({
+    role: 'assistant',
+    content: aiMessage,
+  });
+
+  await chat.save();
+
+  return res.status(200).json({
+    success: true,
+    data: {
+      reply: aiMessage,
+      chat,
+    },
+  });
+} catch (err) {
+  console.error('CHAT SEND ERROR:', err);
+  if (err?.status === 429 || err?.message?.includes('429')) {
+    return res.status(429).json({
+      success: false,
+      error: 'AI quota exceeded. Please wait a few seconds and try again.',
+      retryAfter: 25, 
+    });
+  }
+  return res.status(500).json({
+    success: false,
+    error: 'Failed to generate response',
+  });
+}
+
+
     if (chat.messages.length === 2 && (!chat.title || chat.title === 'New Chat')) {
       try {
         const titleResult = await generateTitle(message);
@@ -202,13 +212,11 @@ export const sendMessage = async (req, res) => {
           chat.title = titleResult.title;
           logger.info(`Generated title: ${titleResult.title} for chat ${chat._id}`);
         } else {
-          // Fallback to first few words
           const words = message.trim().split(/\s+/).slice(0, 4).join(' ');
           chat.title = words || 'New Chat';
         }
       } catch (error) {
         logger.error(`Title generation failed: ${error.message}`);
-        // Fallback to first few words
         const words = message.trim().split(/\s+/).slice(0, 4).join(' ');
         chat.title = words || 'New Chat';
       }
@@ -238,7 +246,6 @@ export const updateChat = async (req, res) => {
     const userId = req.user.id || req.user._id;
     const updates = req.body;
 
-    // Find the chat and verify ownership
     const chat = await Chat.findOne({ _id: chatId, user: userId });
     if (!chat) {
       return res.status(StatusCodes.NOT_FOUND).json({
@@ -247,18 +254,14 @@ export const updateChat = async (req, res) => {
       });
     }
 
-    // Allowed fields to update
     const allowedUpdates = ['title', 'isStarred', 'tags', 'isShared'];
     const updateFields = {};
-
-    // Only update allowed fields
     allowedUpdates.forEach(field => {
       if (updates[field] !== undefined) {
         updateFields[field] = updates[field];
       }
     });
 
-    // If no valid updates, return error
     if (Object.keys(updateFields).length === 0) {
       return res.status(StatusCodes.BAD_REQUEST).json({
         success: false,
@@ -266,7 +269,6 @@ export const updateChat = async (req, res) => {
       });
     }
 
-    // Update the chat
     Object.assign(chat, updateFields);
     await chat.save();
 
@@ -313,99 +315,36 @@ export const deleteChat = async (req, res) => {
 
 export const shareChat = async (req, res) => {
   try {
-    const { chatId } = req.params;
-    const userId = req.user.id || req.user._id;
-
-    const chat = await Chat.findOne({ _id: chatId, user: userId });
+    const chatId = req.params.id;
+    const shareToken = crypto.randomBytes(16).toString('hex');
+    const chat = await Chat.findByIdAndUpdate(
+      chatId,
+      { shareToken },
+      { new: true }
+    );
     if (!chat) {
-      return res.status(StatusCodes.NOT_FOUND).json({
-        success: false,
-        error: 'Chat not found',
-      });
+      return res.status(404).json({ message: 'Chat not found' });
     }
-
-    // Generate share token using model method
-    const shareToken = chat.generateShareToken();
-    await chat.save();
-
-    const shareUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/shared/${shareToken}`;
-
-    res.status(StatusCodes.OK).json({
-      success: true,
-      data: {
-        shareToken,
-        shareUrl,
-        shareLink: shareUrl, // Alias for compatibility
-      },
+    res.json({
+      link: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/share/${shareToken}`,
     });
   } catch (error) {
-    logger.error(`Share chat error: ${error.message}`);
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      error: 'Failed to share chat',
-    });
-  }
-};
-
-export const unshareChat = async (req, res) => {
-  try {
-    const { chatId } = req.params;
-    const userId = req.user.id || req.user._id;
-
-    const chat = await Chat.findOne({ _id: chatId, user: userId });
-    if (!chat) {
-      return res.status(StatusCodes.NOT_FOUND).json({
-        success: false,
-        error: 'Chat not found',
-      });
-    }
-
-    // Remove share token using model method
-    chat.removeShareToken();
-    await chat.save();
-
-    res.status(StatusCodes.OK).json({
-      success: true,
-      message: 'Chat unshared successfully',
-    });
-  } catch (error) {
-    logger.error(`Unshare chat error: ${error.message}`);
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      error: 'Failed to unshare chat',
-    });
+    console.error('Share chat error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
 export const getSharedChat = async (req, res) => {
   try {
     const { token } = req.params;
-
-    const chat = await Chat.findOne({
-      shareToken: token,
-      isShared: true,
-      shareExpires: { $gt: Date.now() },
-    }).populate('user', 'name email');
-
+    const chat = await Chat.findOne({ shareToken: token });
     if (!chat) {
-      return res.status(StatusCodes.NOT_FOUND).json({
-        success: false,
-        error: 'Shared chat not found or expired',
-      });
+      return res.status(404).json({ message: 'Shared chat not found' });
     }
-
-    res.status(StatusCodes.OK).json({
-      success: true,
-      data: {
-        chat,
-      },
-    });
+    res.json(chat);
   } catch (error) {
-    logger.error(`Get shared chat error: ${error.message}`);
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      error: 'Failed to retrieve shared chat',
-    });
+    console.error('Get shared chat error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 

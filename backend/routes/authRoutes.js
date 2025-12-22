@@ -1,4 +1,3 @@
-// backend\routes\authRoutes.js
 import express from 'express';
 import { body } from 'express-validator';
 import {
@@ -16,7 +15,6 @@ import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Validation middleware
 const validateRegister = [
   body('name').not().isEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Please include a valid email'),
@@ -40,7 +38,6 @@ const validateResetPassword = [
     .withMessage('Password must be at least 6 characters long'),
 ];
 
-// Debug route
 router.get('/debug', (req, res) => {
   res.json({
     message: 'Auth routes are working',
@@ -59,7 +56,6 @@ router.get('/debug', (req, res) => {
   });
 });
 
-// Public routes
 router.post('/register', validateRegister, register);
 router.post('/login', validateLogin, login);
 router.post('/forgot-password', validateForgotPassword, forgotPassword);
@@ -67,7 +63,6 @@ router.put('/reset-password/:resettoken', validateResetPassword, resetPassword);
 router.get('/verify-email/:verificationtoken', verifyEmail);
 router.post('/resend-verification', validateForgotPassword, resendVerification);
 
-// Protected routes
 router.get('/me', protect, getMe);
 router.get('/check', protect, checkAuth);
 router.get('/logout', protect, logout);

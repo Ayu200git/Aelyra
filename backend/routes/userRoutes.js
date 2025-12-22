@@ -5,12 +5,13 @@ import {
   updateProfile,
   deleteAccount,
   updatePassword,
+  uploadProfileImage,
+  deleteProfileImage,
 } from '../controllers/userController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Validation middleware
 const validateUpdateProfile = [
   body('name')
     .optional()
@@ -32,10 +33,7 @@ const validateUpdatePassword = [
     .withMessage('New password must be at least 6 characters long'),
 ];
 
-// All routes are protected
 router.use(protect);
-
-// User profile routes
 router.route('/profile')
   .get(getProfile)
   .put(validateUpdateProfile, updateProfile);
@@ -45,5 +43,48 @@ router.route('/update-password')
 
 router.route('/delete-account')
   .delete(deleteAccount);
+
+router.route('/profile-image')
+  .post(uploadProfileImage)
+  .delete(deleteProfileImage);
+
+const handleImageChange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 200 * 1024) {
+    setError("Image too large (max 200KB)");
+    return;
+  }
+  const reader = new FileReader();
+  reader.onloadend = async () => {
+    const base64 = reader.result.split(',')[1];
+    const res = await fetch('/api/user/profile-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ image: base64 }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      dispatch(setUser(data.data));
+    } else {
+      setError(data.error || "Upload failed");
+    }
+  };
+  reader.readAsDataURL(file);
+};
+
+const handleDeleteImage = async () => {
+  const res = await fetch('/api/user/profile-image', {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  const data = await res.json();
+  if (data.success) {
+    dispatch(setUser(data.data));
+  } else {
+    setError(data.error || "Delete failed");
+  }
+};
 
 export default router;

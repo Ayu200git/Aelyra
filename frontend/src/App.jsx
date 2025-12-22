@@ -50,7 +50,7 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-background">
+      <div className="h-screen flex flex-col bg-background">
         <Navbar />
         <Routes>
           <Route

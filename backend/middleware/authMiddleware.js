@@ -1,4 +1,3 @@
-// backend\middleware\authMiddleware.js
 import jwt from 'jsonwebtoken';
 import { StatusCodes } from 'http-status-codes';
 import User from '../models/User.js';
@@ -8,15 +7,12 @@ import { logger } from '../utils/logger.js';
 export const protect = async (req, res, next) => {
   try {
     let token;
-
-    // Get token from header or cookie
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     } else if (req.cookies?.token) {
       token = req.cookies.token;
     }
 
-    // Make sure token exists
     if (!token) {
       logger.warn('No token found in request');
       return res.status(StatusCodes.UNAUTHORIZED).json({
@@ -26,10 +22,7 @@ export const protect = async (req, res, next) => {
     }
 
     try {
-      // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      // Get user from the token
       const user = await User.findById(decoded.id).select('-password');
       
       if (!user) {
@@ -40,7 +33,6 @@ export const protect = async (req, res, next) => {
         });
       }
 
-      // Add user to request object
       req.user = user;
       next();
     } catch (err) {
@@ -59,7 +51,6 @@ export const protect = async (req, res, next) => {
   }
 };
 
-// Grant access to specific roles
 export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {

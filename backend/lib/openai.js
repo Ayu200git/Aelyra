@@ -25,12 +25,10 @@ export const generateResponse = async (messages) => {
       };
     }
 
-    // ✅ LOCK TO WORKING MODEL
     const model = genAI.getGenerativeModel({
       model: 'gemini-3-flash-preview',
     });
 
-    // Gemini chat history format
     const history = validMessages.slice(0, -1).map((msg) => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: [{ text: msg.content.trim() }],
@@ -61,7 +59,7 @@ export const generateResponse = async (messages) => {
       message: responseText.trim(),
     };
   } catch (error) {
-    console.error('🔥 Gemini API Error:', error);
+    console.error('Gemini API Error:', error);
 
     return {
       success: false,
@@ -70,7 +68,6 @@ export const generateResponse = async (messages) => {
   }
 };
 
-// Generate a short title (3-4 words) from the first user message
 export const generateTitle = async (firstMessage) => {
   try {
     if (!firstMessage || !firstMessage.trim()) {
@@ -83,30 +80,25 @@ export const generateTitle = async (firstMessage) => {
     const model = genAI.getGenerativeModel({
       model: 'gemini-3-flash-preview',
     });
-
-    // Create a prompt to generate a short title
+ 
     const prompt = `Generate a short, concise title (3-4 words maximum) for this conversation starter: "${firstMessage.substring(0, 200)}"
-
-Return only the title, nothing else. Make it descriptive and relevant.`;
+      Return only the title, nothing else. Make it descriptive and relevant.`;
 
     const result = await model.generateContent(prompt, {
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 20, // Very short for title
+        maxOutputTokens: 20,
       },
     });
 
     const title = result.response.text().trim();
-    
-    // Clean up the title - remove quotes, extra spaces, etc.
     const cleanTitle = title
-      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-      .replace(/\s+/g, ' ') // Normalize whitespace
+      .replace(/^["']|["']$/g, '') 
+      .replace(/\s+/g, ' ')  
       .trim()
-      .substring(0, 50); // Max 50 chars
+      .substring(0, 50);  
 
     if (!cleanTitle) {
-      // Fallback to first few words of message
       const words = firstMessage.trim().split(/\s+/).slice(0, 4).join(' ');
       return {
         success: true,
@@ -120,7 +112,6 @@ Return only the title, nothing else. Make it descriptive and relevant.`;
     };
   } catch (error) {
     console.error('Title generation error:', error);
-    // Fallback to first few words of message
     const words = firstMessage.trim().split(/\s+/).slice(0, 4).join(' ');
     return {
       success: true,

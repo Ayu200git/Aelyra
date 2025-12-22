@@ -8,8 +8,7 @@ export const fetchChats = createAsyncThunk(
   async ({ search = '', page = 1, append = false } = {}, { rejectWithValue }) => {
     const trimmedSearch = search.trim();
     const requestKey = `${trimmedSearch}-${page}-${append}`;
-    
-    // Prevent duplicate simultaneous calls
+  
     if (fetchChatsPromise && fetchChatsPromise.key === requestKey) {
       return fetchChatsPromise.promise;
     }
@@ -22,18 +21,16 @@ export const fetchChats = createAsyncThunk(
           limit: 20,
         },
       }).then(response => {
-        // Handle new response format: { success: true, data: { chats: [...], pagination: {...} } }
         const data = response.data.data || response.data;
         const chats = data.chats || [];
         const pagination = data.pagination || {};
         
-        // Normalize _id to id for consistency
         const normalizedChats = chats.map(chat => ({ ...chat, id: chat._id || chat.id }));
         
         return {
           chats: normalizedChats,
           pagination,
-          append, // Flag to indicate if we should append or replace
+          append,  
         };
       });
       
@@ -50,13 +47,10 @@ export const fetchChats = createAsyncThunk(
 
 export const createChat = createAsyncThunk(
   'chat/createChat',
-  // Accept an object for clarity
   async ({ title = 'New Chat' }, { rejectWithValue }) => {
     try {
       const response = await api.post('/chat/create', { title });
-      // Handle new response format: { success: true, data: { chat: {...} } }
       const chat = response.data.data?.chat || response.data.chat;
-      // Normalize _id to id for consistency
       return { ...chat, id: chat._id || chat.id };
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || error.message || 'Failed to create chat');
@@ -69,9 +63,7 @@ export const fetchChat = createAsyncThunk(
   async (chatId, { rejectWithValue }) => {
     try {
       const response = await api.get(`/chat/${chatId}`);
-      // Handle new response format: { success: true, data: { chat: {...} } }
       const chat = response.data.data?.chat || response.data.chat;
-      // Normalize _id to id for consistency
       return { ...chat, id: chat._id || chat.id };
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || error.message || 'Failed to fetch chat');
@@ -84,7 +76,6 @@ export const deleteChat = createAsyncThunk(
   async (chatId, { rejectWithValue }) => {
     try {
       await api.delete(`/chat/${chatId}`);
-      // Return the chatId (could be _id or id format)
       return chatId;
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || error.message || 'Failed to delete chat');
@@ -97,9 +88,7 @@ export const updateChat = createAsyncThunk(
   async ({ chatId, updates }, { rejectWithValue }) => {
     try {
       const response = await api.patch(`/chat/${chatId}`, updates);
-      // Handle new response format
       const chat = response.data.data?.chat || response.data.chat;
-      // Normalize _id to id for consistency
       return { ...chat, id: chat._id || chat.id };
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || error.message || 'Failed to update chat');
@@ -112,9 +101,7 @@ export const toggleStarChat = createAsyncThunk(
   async ({ chatId, isStarred }, { rejectWithValue }) => {
     try {
       const response = await api.patch(`/chat/${chatId}`, { isStarred });
-      // Handle new response format
       const chat = response.data.data?.chat || response.data.chat;
-      // Normalize _id to id for consistency
       return { ...chat, id: chat._id || chat.id };
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || error.message || 'Failed to star chat');
@@ -127,7 +114,6 @@ export const shareChat = createAsyncThunk(
   async (chatId, { rejectWithValue }) => {
     try {
       const response = await api.post(`/chat/${chatId}/share`);
-      // Handle new response format: { success: true, data: { shareToken, shareUrl, shareLink } }
       const shareData = response.data.data || response.data;
       return { chatId, ...shareData };
     } catch (error) {
@@ -155,8 +141,6 @@ export const sendMessage = createAsyncThunk(
       if (regenerate) {
         dispatch(removeLastAssistantMessage({ chatId }));
       }
-
-      // Use FormData for image uploads, JSON for text-only
       let body;
       let headers = {
         'Content-Type': 'application/json',
@@ -168,7 +152,7 @@ export const sendMessage = createAsyncThunk(
         formData.append('chatId', chatId);
         formData.append('image', imageFile);
         body = formData;
-        headers = {}; // Let browser set Content-Type for FormData
+        headers = {}; 
       } else {
         body = JSON.stringify({ message, chatId });
       }
@@ -187,7 +171,6 @@ export const sendMessage = createAsyncThunk(
       }
 
       const data = await response.json();
-      // Handle new response format: { success: true, data: { chat: {...}, reply: "..." } }
       const reply = data.data?.reply || data.reply;
       const updatedChat = data.data?.chat || data.chat;
 
@@ -195,7 +178,6 @@ export const sendMessage = createAsyncThunk(
         dispatch(finalizeMessage({ chatId, content: reply }));
       }
 
-      // Return normalized chat with id
       if (updatedChat) {
         const normalizedChat = { ...updatedChat, id: updatedChat._id || updatedChat.id };
         return { chatId, chat: normalizedChat, message: reply };
@@ -280,7 +262,6 @@ const chatSlice = createSlice({
         if (lastMessage && lastMessage.role === 'assistant') {
           lastMessage.content = content;
         } else {
-          // Create new assistant message if it doesn't exist
           messages.push({
             role: 'assistant',
             content: content,
@@ -327,12 +308,10 @@ const chatSlice = createSlice({
         const { chats, pagination, append } = action.payload;
         
         if (append) {
-          // Append new chats to existing ones (for load more)
           state.chats = [...state.chats, ...chats];
         } else {
-          // Replace chats (initial load or new search)
           state.chats = chats;
-          state.chatsFetched = true; // Mark as fetched on initial load or search
+          state.chatsFetched = true; 
         }
         
         if (pagination) {
@@ -342,7 +321,6 @@ const chatSlice = createSlice({
       .addCase(fetchChats.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        // Don't set chatsFetched to true on error - allows retry
       })
       .addCase(createChat.fulfilled, (state, action) => {
         state.chats.unshift(action.payload);
@@ -364,7 +342,6 @@ const chatSlice = createSlice({
         state.error = action.payload;
       })
       .addCase(deleteChat.fulfilled, (state, action) => {
-        // Handle both _id and id formats
         const chatId = action.payload;
         state.chats = state.chats.filter((chat) => 
           (chat._id || chat.id) !== (chatId._id || chatId) && 
@@ -393,7 +370,6 @@ const chatSlice = createSlice({
         }
       })
       .addCase(toggleStarChat.fulfilled, (state, action) => {
-        // Update chat in chats array
         const updated = action.payload;
         const chatId = updated._id || updated.id;
         const idx = state.chats.findIndex((c) => 
@@ -402,7 +378,6 @@ const chatSlice = createSlice({
         if (idx !== -1) {
           state.chats[idx] = updated;
         }
-        // If currentChat is this chat, update it
         if (state.currentChat && 
             ((state.currentChat._id || state.currentChat.id) === chatId)) {
           state.currentChat = updated;
@@ -414,7 +389,6 @@ const chatSlice = createSlice({
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
         state.streaming = false;
-        // Update chat in list if title was updated
         if (action.payload?.chat) {
           const updatedChat = action.payload.chat;
           const chatId = updatedChat.id || updatedChat._id;
@@ -422,14 +396,13 @@ const chatSlice = createSlice({
           if (index !== -1) {
             state.chats[index] = { ...state.chats[index], ...updatedChat };
           } else if (state.chats.length > 0) {
-            // If chat not in list, add it at the beginning
             state.chats.unshift({ ...updatedChat, id: updatedChat.id || updatedChat._id });
           }
         }
       })
       .addCase(sendMessage.rejected, (state, action) => {
         state.streaming = false;
-        state.error = action.payload;
+        state.error = "AI Quota reached retry after some time.";
       });
   },
 });

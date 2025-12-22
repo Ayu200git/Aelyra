@@ -29,8 +29,6 @@ export default function Register() {
       setError("All fields are required");
       return;
     }
-
-    // FIX: Changed 'username' to 'name'
     const result = await dispatch(register({ email, password, name }));
 
     if (result.type === register.rejected.type) {

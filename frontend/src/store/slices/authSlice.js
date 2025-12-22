@@ -1,22 +1,22 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { useNavigate } from 'react-router-dom';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const register = createAsyncThunk(
   'auth/register',
-  async ({ email, password, name }, { rejectWithValue }) => {  // ← Changed 'username' to 'name'
+  async ({ email, password, name }, { rejectWithValue }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, password, name }),  // ← Changed 'username' to 'name'
+        body: JSON.stringify({ email, password, name }),
       });
       const data = await response.json();
       if (!response.ok) {
         return rejectWithValue(data.error || data.message || 'Registration failed');
       }
-      // Handle both old and new response formats
-      return data.data || data;
+      return data.data || data.user || data;
     } catch (error) {
       return rejectWithValue(error.message || 'Network error');
     }
@@ -33,11 +33,15 @@ export const login = createAsyncThunk(
         credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        return rejectWithValue('Server error. Please try again later.');
+      }
       if (!response.ok) {
         return rejectWithValue(data.error || data.message || 'Login failed');
       }
-      // Handle both old and new response formats
       return data.data || data;
     } catch (error) {
       return rejectWithValue(error.message || 'Network error');
@@ -50,7 +54,7 @@ export const logout = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: 'GET',  // ← Changed from POST to GET (your backend uses GET)
+        method: 'GET', 
         credentials: 'include',
       });
       if (!response.ok) {
@@ -110,7 +114,6 @@ export const updateProfile = createAsyncThunk(
       if (!response.ok) {
         return rejectWithValue(data.error || data.message || 'Update failed');
       }
-      // Handle both old and new response formats
       return data.data || data;
     } catch (error) {
       return rejectWithValue(error.message || 'Network error');
@@ -122,7 +125,7 @@ export const deleteProfile = createAsyncThunk(
   'auth/deleteProfile',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/user/delete`, {
+      const response = await fetch(`${API_BASE_URL}/user/delete-account`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -130,7 +133,6 @@ export const deleteProfile = createAsyncThunk(
       if (!response.ok) {
         return rejectWithValue(data.error || data.message || 'Delete failed');
       }
-      // Handle both old and new response formats
       return data.data || data;
     } catch (error) {
       return rejectWithValue(error.message || 'Network error');
@@ -151,7 +153,6 @@ export const requestPasswordReset = createAsyncThunk(
       if (!response.ok) {
         return rejectWithValue(data.error || data.message || 'Request failed');
       }
-      // Handle both old and new response formats
       return data.data || data;
     } catch (error) {
       return rejectWithValue(error.message || 'Network error');
@@ -163,16 +164,15 @@ export const resetPassword = createAsyncThunk(
   'auth/resetPassword',
   async ({ token, password }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/reset-password/${token}`, {  // ← Fixed URL
-        method: 'PUT',  // ← Changed from POST to PUT (your backend uses PUT)
+      const response = await fetch(`${API_BASE_URL}/auth/reset-password/${token}`, { 
+        method: 'PUT', 
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),  // ← Only send password, not token
+        body: JSON.stringify({ password }), 
       });
       const data = await response.json();
       if (!response.ok) {
         return rejectWithValue(data.error || data.message || 'Reset failed');
       }
-      // Handle both old and new response formats
       return data.data || data;
     } catch (error) {
       return rejectWithValue(error.message || 'Network error');
@@ -224,8 +224,7 @@ const authSlice = createSlice({
       .addCase(register.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
-        state.user = action.payload.user;
-        state.initialized = true;
+        state.user = action.payload;
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
@@ -256,7 +255,7 @@ const authSlice = createSlice({
       })
       .addCase(updateProfile.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload.user;
+        state.user = action.payload.data || action.payload.user || action.payload;
       })
       .addCase(updateProfile.rejected, (state, action) => {
         state.loading = false;
@@ -267,7 +266,6 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(deleteProfile.fulfilled, (state) => {
-        state.loading = false;
         state.user = null;
         state.isAuthenticated = false;
       })
@@ -304,3 +302,18 @@ const authSlice = createSlice({
 
 export const { clearError, resetAuth } = authSlice.actions;
 export default authSlice.reducer;
+
+const AuthRedirect = () => {
+  const { isAuthenticated } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/register');
+    }
+  }, [isAuthenticated, navigate]);
+
+  return null;
+};
+
+export { AuthRedirect };

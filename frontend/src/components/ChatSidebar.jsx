@@ -7,7 +7,7 @@ import { fetchChats, createChat, deleteChat, setCurrentChat, setSidebarOpen, fet
 
 let searchTimeout;
 
-export default function ChatSidebar() {
+function ChatSidebar({ children }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const dispatch = useAppDispatch();
@@ -15,21 +15,16 @@ export default function ChatSidebar() {
   const { isAuthenticated } = useAppSelector((state) => state.auth);
   const hasFetchedRef = useRef(false);
 
-  // Fetch chats on mount when authenticated - only once
   useEffect(() => {
-    // Only fetch if authenticated and chats haven't been fetched
     if (isAuthenticated && !chatsFetched && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
-      dispatch(fetchChats({ search: '', page: 1, append: false }));
+      dispatch(fetchChats({ search: '', page: 1, limit: 6, append: false }));
     }
-    
-    // Reset ref when user logs out or chats are reset
     if (!isAuthenticated) {
       hasFetchedRef.current = false;
     }
   }, [isAuthenticated, chatsFetched, dispatch]);
 
-  // Close menu on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!e.target.closest('.group\\/menu')) {
@@ -40,22 +35,21 @@ export default function ChatSidebar() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  // Debounced search
   const debouncedSearch = useCallback((query) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
       const trimmedQuery = query.trim();
-      dispatch(fetchChats({ search: trimmedQuery, page: 1, append: false }));
+      dispatch(fetchChats({ search: trimmedQuery, page: 1, limit: 6, append: false }));
     }, 300);
   }, [dispatch]);
 
-  // Load more chats
   const handleLoadMore = () => {
     if (pagination?.hasMore && !loading) {
       const nextPage = (pagination.page || 1) + 1;
       dispatch(fetchChats({ 
         search: searchQuery, 
         page: nextPage, 
+        limit: 6,
         append: true 
       }));
     }
@@ -80,7 +74,6 @@ export default function ChatSidebar() {
   const handleSelectChat = async (chat) => {
     const chatId = chat.id || chat._id;
     if (chatId) {
-      // Always fetch full chat to ensure we have all messages
       const result = await dispatch(fetchChat(chatId));
       if (fetchChat.fulfilled.match(result)) {
         dispatch(setCurrentChat(result.payload));
@@ -91,7 +84,6 @@ export default function ChatSidebar() {
       dispatch(setCurrentChat(chat));
     }
     
-    // Close sidebar on mobile after selection
     if (window.innerWidth < 768) {
       dispatch(setSidebarOpen(false));
     }
@@ -147,7 +139,6 @@ export default function ChatSidebar() {
       if (fetchChat.fulfilled.match(fullChat)) {
         const chatData = fullChat.payload;
 
-        // Dynamic import of jsPDF
         const { jsPDF } = await import('jspdf');
         
         const doc = new jsPDF({
@@ -161,8 +152,6 @@ export default function ChatSidebar() {
         const margin = 15;
         const maxWidth = pageWidth - 2 * margin;
         let yPosition = margin;
-
-        // Title
         doc.setFontSize(20);
         doc.setFont('helvetica', 'bold');
         const title = chatData.title || "Chat Export";
@@ -176,7 +165,6 @@ export default function ChatSidebar() {
           yPosition += 8;
         });
 
-        // Export date
         yPosition += 5;
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
@@ -184,12 +172,10 @@ export default function ChatSidebar() {
         doc.text(`Exported on: ${new Date().toLocaleString()}`, margin, yPosition);
         yPosition += 10;
 
-        // Divider
         doc.setDrawColor(200, 200, 200);
         doc.line(margin, yPosition, pageWidth - margin, yPosition);
         yPosition += 10;
 
-        // Messages
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(11);
 
@@ -198,20 +184,17 @@ export default function ChatSidebar() {
             const isUser = msg.role === "user";
             const role = isUser ? "👤 User" : "🤖 Assistant";
 
-            // Check if we need a new page
             if (yPosition > pageHeight - margin - 30) {
               doc.addPage();
               yPosition = margin;
             }
 
-            // Role label
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(11);
             doc.setTextColor(isUser ? 66 : 52, isUser ? 133 : 52, isUser ? 244 : 52);
             doc.text(role, margin + 5, yPosition);
             yPosition += 7;
 
-            // Message content
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(10);
             doc.setTextColor(0, 0, 0);
@@ -228,9 +211,8 @@ export default function ChatSidebar() {
               yPosition += 6;
             });
 
-            yPosition += 8; // Space between messages
+            yPosition += 8; 
 
-            // Add page break if needed before next message
             if (yPosition > pageHeight - margin - 20 && index < chatData.messages.length - 1) {
               doc.addPage();
               yPosition = margin;
@@ -242,7 +224,6 @@ export default function ChatSidebar() {
           doc.text("No messages in this chat", margin + 5, yPosition);
         }
 
-        // Page numbers
         const totalPages = doc.internal.pages.length - 1;
         doc.setFontSize(9);
         doc.setTextColor(150, 150, 150);
@@ -256,7 +237,6 @@ export default function ChatSidebar() {
           );
         }
 
-        // Save file
         const filename = `${(title).replace(/[^a-z0-9]/gi, "_").substring(0, 50)}_${new Date().getTime()}.pdf`;
         doc.save(filename);
       } else {
@@ -268,32 +248,43 @@ export default function ChatSidebar() {
     }
   };
 
-  // Filter chats based on favorites
   const filteredChats = showFavoritesOnly 
     ? chats.filter(chat => chat.isStarred === true)
     : chats;
-
-  if (!sidebarOpen) {
-    return null;
+  if (isAuthenticated && chatsFetched && chats.length === 0) {
+    return <div className="p-4 text-center text-gray-500">No chat history</div>;
   }
+
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [sidebarOpen]);
+
+   
 
   return (
     <>
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
           onClick={() => dispatch(setSidebarOpen(false))}
         />
       )}
-      
-      {/* Sidebar */}
+
       <div
-        className={`fixed md:relative inset-y-0 left-0 z-50 w-full sm:w-72 bg-background border-r border-border flex flex-col transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
+          className={`fixed md:relative left-0 z-50 w-full sm:w-72 
+            bg-background border-r border-border 
+            flex flex-col h-full
+            transition-transform duration-300 ease-in-out
+            ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          `}
       >
-        {/* Header */}
         <div className="p-3 sm:p-4 border-b border-border bg-muted/30">
           <div className="flex items-center gap-2 mb-2">
             <Button 
@@ -324,7 +315,6 @@ export default function ChatSidebar() {
             </Button>
           </div>
           
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -336,7 +326,6 @@ export default function ChatSidebar() {
           </div>
         </div>
 
-        {/* Chat List */}
         <div className="flex-1 overflow-y-auto overscroll-contain">
           {loading && chats.length === 0 ? (
             <div className="p-8 text-center">
@@ -360,7 +349,6 @@ export default function ChatSidebar() {
               {filteredChats.map((chat) => {
                 const chatId = chat.id || chat._id;
                 const isActive = (currentChat?.id || currentChat?._id) === chatId;
-                // Use preview from backend, or extract from messages if available
                 const preview = chat.preview || 
                   (chat.messages && chat.messages.length > 0 
                     ? chat.messages[chat.messages.length - 1]?.content?.substring(0, 60) 
@@ -377,12 +365,10 @@ export default function ChatSidebar() {
                     }`}
                   >
                     <div className="flex items-start gap-2">
-                      {/* Icon */}
                       <MessageSquare className={`w-4 h-4 mt-0.5 shrink-0 ${
                         isActive ? "text-primary" : "text-muted-foreground"
                       }`} />
                       
-                      {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className={`text-sm font-medium truncate ${
@@ -404,7 +390,6 @@ export default function ChatSidebar() {
                         )}
                       </div>
 
-                      {/* Actions */}
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                         <button
                           onClick={(e) => handleStarChat(e, chatId, chat.isStarred)}
@@ -440,7 +425,6 @@ export default function ChatSidebar() {
                             <MoreVertical className="w-4 h-4 text-muted-foreground" />
                           </button>
                           
-                          {/* Dropdown Menu */}
                           <div className="chat-menu hidden absolute right-0 top-full mt-1 bg-background border border-border rounded-lg shadow-lg z-50 min-w-[160px] overflow-hidden">
                             {chat.isShared ? (
                               <button
@@ -485,7 +469,6 @@ export default function ChatSidebar() {
             </div>
           )}
           
-          {/* Load More Button */}
           {pagination?.hasMore && filteredChats.length > 0 && (
             <div className="p-4 border-t border-border">
               <Button
@@ -513,3 +496,5 @@ export default function ChatSidebar() {
     </>
   );
 }
+
+export default ChatSidebar;

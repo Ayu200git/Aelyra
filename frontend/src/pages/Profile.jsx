@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppDispatch, useAppSelector } from "@/hooks/redux";
-import { updateProfile, deleteProfile, logout } from "@/store/slices/authSlice";
+import { updateProfile, deleteProfile } from "@/store/slices/authSlice";
 import { Trash2, Upload, User as UserIcon } from "lucide-react";
 
 export default function Profile() {
@@ -60,16 +61,9 @@ export default function Profile() {
   };
 
   const handleDeleteAccount = async () => {
-    if (!confirm("Are you sure you want to delete your account? This action cannot be undone. All your chats will be deleted.")) {
-      return;
-    }
-
-    const result = await dispatch(deleteProfile());
-    if (deleteProfile.fulfilled.match(result)) {
-      await dispatch(logout());
-      navigate("/login");
-    } else {
-      setError(result.payload || "Failed to delete account");
+    const res = await dispatch(deleteProfile());
+    if (res.meta.requestStatus === 'fulfilled') {
+      navigate('/register'); 
     }
   };
 

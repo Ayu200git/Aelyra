@@ -2,13 +2,8 @@ import express from 'express';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
-
-// @desc    Generate an image using AI
-// @route   POST /api/image/generate
-// @access  Private
 router.post('/generate', protect, async (req, res) => {
   try {
-    // TODO: Implement image generation logic here
     res.status(200).json({
       success: true,
       data: {

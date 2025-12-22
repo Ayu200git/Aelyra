@@ -44,22 +44,7 @@ const chatSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    shareToken: {
-      type: String,
-      unique: true,
-      sparse: true,
-    },
-    shareExpires: Date,
-    isStarred: {
-      type: Boolean,
-      default: false,
-    },
-    tags: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
+    shareToken: { type: String, unique: true, sparse: true },
   },
   {
     timestamps: true,
@@ -68,11 +53,9 @@ const chatSchema = new mongoose.Schema(
   }
 );
 
-// Indexes for better query performance
 chatSchema.index({ user: 1, updatedAt: -1 });
 chatSchema.index({ shareToken: 1 }, { unique: true, sparse: true });
 
-// Generate a unique share token
 chatSchema.methods.generateShareToken = function () {
   const token = require('crypto').randomBytes(20).toString('hex');
   this.shareToken = token;
@@ -81,14 +64,12 @@ chatSchema.methods.generateShareToken = function () {
   return token;
 };
 
-// Remove share token
 chatSchema.methods.removeShareToken = function () {
   this.shareToken = undefined;
   this.shareExpires = undefined;
   this.isShared = false;
 };
 
-// Update chat title based on first message if not provided
 chatSchema.pre('save', function (next) {
   if (this.isNew && this.messages.length > 0 && !this.title) {
     const firstMessage = this.messages[0].content;
@@ -100,7 +81,6 @@ chatSchema.pre('save', function (next) {
   next();
 });
 
-// Add text index for search functionality
 chatSchema.index(
   { title: 'text', 'messages.content': 'text' },
   {

@@ -1,19 +1,16 @@
-// backend/utils/email.js
 import nodemailer from 'nodemailer';
 import { logger } from './logger.js';
-
-// Create a transporter object using the default SMTP transport
+ 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT || 587,
-  secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+  secure: process.env.SMTP_SECURE === 'true',  
   auth: {
     user: process.env.SMTP_USERNAME,
     pass: process.env.SMTP_PASSWORD,
   },
 });
-
-// Verify connection configuration (only if SMTP is configured)
+ 
 if (process.env.SMTP_HOST && process.env.SMTP_USERNAME) {
   transporter.verify((error) => {
     if (error) {
@@ -27,15 +24,6 @@ if (process.env.SMTP_HOST && process.env.SMTP_USERNAME) {
   logger.warn('SMTP not configured - email functionality disabled');
 }
 
-/**
- * Send an email
- * @param {Object} options - Email options
- * @param {string} options.email - Recipient email address
- * @param {string} options.subject - Email subject
- * @param {string} options.message - Email message (plain text)
- * @param {string} [options.html] - HTML version of the message (optional)
- * @returns {Promise<void>}
- */
 const sendEmail = async ({ email, subject, message, html }) => {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USERNAME) {
     logger.warn(`Email skipped (SMTP not configured). Intended recipient: ${email}`);
@@ -61,12 +49,6 @@ const sendEmail = async ({ email, subject, message, html }) => {
   }
 };
 
-/**
- * Send password reset email
- * @param {string} email - Recipient email address
- * @param {string} resetUrl - Password reset URL
- * @returns {Promise<void>}
- */
 export const sendPasswordResetEmail = async (email, resetUrl) => {
   const message = `You are receiving this email because you (or someone else) has requested the reset of a password.
 Please make a PUT request to:
@@ -99,12 +81,6 @@ If you did not request this, please ignore this email and your password will rem
   });
 };
 
-/**
- * Send verification email
- * @param {string} email - Recipient email address
- * @param {string} verificationUrl - Email verification URL
- * @returns {Promise<void>}
- */
 export const sendVerificationEmail = async (email, verificationUrl) => {
   const message = `Please verify your email by clicking on the link:
 
