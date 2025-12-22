@@ -3,5 +3,16 @@
   "rewrites": [
     { "source": "/api/chat/:chatId", "destination": "/api/chat/[chatId].js" },
     { "source": "/((?!api/).*)", "destination": "/frontend/dist/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
   ]
 }
