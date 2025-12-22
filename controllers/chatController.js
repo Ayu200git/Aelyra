@@ -132,113 +132,91 @@ export const sendMessage = async (req, res) => {
         error: 'Message is required',
       });
     }
+    
+    let chat = null;
 
-    let chat = await Chat.findOne({ _id: chatId, user: userId });
-    if (!chat) {
-      if (chatId) {
+    if (chatId) {
+      chat = await Chat.findOne({ _id: chatId, user: userId });
+      if (!chat) {
         return res.status(StatusCodes.NOT_FOUND).json({
           success: false,
           error: 'Chat not found',
         });
       }
+    } else {
       chat = new Chat({
         user: userId,
-        title: message.substring(0, 50) || 'New Chat',
+        title: 'New Chat',
         messages: [],
       });
     }
 
-    const userMessage = {
+    // user message
+    chat.messages.push({
       role: 'user',
       content: message.trim(),
-    };
-    if (image) {
-      userMessage.images = [{ url: image }];
-    }
-    
-    chat.messages.push(userMessage);
-
-    // Generate AI response
-    try {
-  const aiResponseResult = await generateResponse(chat.messages);
-
-  let aiMessage = null;
-  if (typeof aiResponseResult === 'string') {
-    aiMessage = aiResponseResult;
-  } else if (aiResponseResult?.message) {
-    aiMessage = aiResponseResult.message;
-  } else if (aiResponseResult?.choices?.[0]?.message?.content) {
-    aiMessage = aiResponseResult.choices[0].message.content;
-  }
-
-  if (!aiMessage) {
-    throw new Error(`Invalid AI response: ${JSON.stringify(aiResponseResult)}`);
-  }
-
-  chat.messages.push({
-    role: 'assistant',
-    content: aiMessage,
-  });
-
-  await chat.save();
-
-  return res.status(200).json({
-    success: true,
-    data: {
-      reply: aiMessage,
-      chat,
-    },
-  });
-} catch (err) {
-  console.error('CHAT SEND ERROR:', err);
-  if (err?.status === 429 || err?.message?.includes('429')) {
-    return res.status(429).json({
-      success: false,
-      error: 'AI quota exceeded. Please wait a few seconds and try again.',
-      retryAfter: 25, 
+      ...(image ? { images: [{ url: image }] } : {}),
     });
-  }
-  return res.status(500).json({
-    success: false,
-    error: 'Failed to generate response',
-  });
-}
 
+    // AI response
+    const aiResponseResult = await generateResponse(chat.messages);
 
-    if (chat.messages.length === 2 && (!chat.title || chat.title === 'New Chat')) {
+    let aiMessage =
+      typeof aiResponseResult === 'string'
+        ? aiResponseResult
+        : aiResponseResult?.message ||
+          aiResponseResult?.choices?.[0]?.message?.content;
+
+    if (!aiMessage) {
+      throw new Error('Invalid AI response');
+    }
+
+    chat.messages.push({
+      role: 'assistant',
+      content: aiMessage,
+    });
+    if (chat.messages.length === 2 && chat.title === 'New Chat') {
       try {
-        const titleResult = await generateTitle(message);
-        if (titleResult.success && titleResult.title) {
+        const titleResult = await generateTitle(chat.messages);
+        if (titleResult?.title) {
           chat.title = titleResult.title;
-          logger.info(`Generated title: ${titleResult.title} for chat ${chat._id}`);
         } else {
-          const words = message.trim().split(/\s+/).slice(0, 4).join(' ');
-          chat.title = words || 'New Chat';
+          chat.title = message.trim().split(/\s+/).slice(0, 4).join(' ');
         }
-      } catch (error) {
-        logger.error(`Title generation failed: ${error.message}`);
-        const words = message.trim().split(/\s+/).slice(0, 4).join(' ');
-        chat.title = words || 'New Chat';
+      } catch (err) {
+        logger.error(`Title generation failed: ${err.message}`);
+        chat.title = message.trim().split(/\s+/).slice(0, 4).join(' ');
       }
     }
 
     await chat.save();
 
-    res.status(StatusCodes.OK).json({
+    return res.status(StatusCodes.OK).json({
       success: true,
       data: {
+        reply: aiMessage,
         chat,
-        reply: chat.messages[chat.messages.length - 1].content,
       },
     });
+
   } catch (error) {
     logger.error(`Send message error: ${error.message}`);
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+
+    if (error?.status === 429 || error?.message?.includes('429')) {
+      return res.status(429).json({
+        success: false,
+        error: 'AI quota exceeded. Please wait and try again.',
+        retryAfter: 25,
+      });
+    }
+
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       success: false,
       error: 'Failed to send message',
     });
   }
 };
+
 
 export const updateChat = async (req, res) => {
   try {
