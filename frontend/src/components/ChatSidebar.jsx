@@ -57,11 +57,11 @@ function ChatSidebar({ children }) {
   const handleLoadMore = () => {
     if (pagination?.hasMore && !loading) {
       const nextPage = (pagination.page || 1) + 1;
-      dispatch(fetchChats({ 
-        search: searchQuery, 
-        page: nextPage, 
+      dispatch(fetchChats({
+        search: searchQuery,
+        page: nextPage,
         limit: 6,
-        append: true 
+        append: true
       }));
     }
   };
@@ -94,7 +94,7 @@ function ChatSidebar({ children }) {
     } else {
       dispatch(setCurrentChat(chat));
     }
-    
+
     if (window.innerWidth < 768) {
       dispatch(setSidebarOpen(false));
     }
@@ -146,12 +146,12 @@ function ChatSidebar({ children }) {
     try {
       const chatId = chat.id || chat._id;
       const fullChat = await dispatch(fetchChat(chatId));
-      
+
       if (fetchChat.fulfilled.match(fullChat)) {
         const chatData = fullChat.payload;
 
         const { jsPDF } = await import('jspdf');
-        
+
         const doc = new jsPDF({
           orientation: 'portrait',
           unit: 'mm',
@@ -212,7 +212,7 @@ function ChatSidebar({ children }) {
 
             const content = msg.content || "";
             const lines = doc.splitTextToSize(content, maxWidth - 10);
-            
+
             lines.forEach((line) => {
               if (yPosition + 6 > pageHeight - margin) {
                 doc.addPage();
@@ -222,7 +222,7 @@ function ChatSidebar({ children }) {
               yPosition += 6;
             });
 
-            yPosition += 8; 
+            yPosition += 8;
 
             if (yPosition > pageHeight - margin - 20 && index < chatData.messages.length - 1) {
               doc.addPage();
@@ -259,7 +259,7 @@ function ChatSidebar({ children }) {
     }
   };
 
-  const filteredChats = showFavoritesOnly 
+  const filteredChats = showFavoritesOnly
     ? chats.filter(chat => chat.isStarred === true)
     : chats;
   if (isAuthenticated && chatsFetched && chats.length === 0) {
@@ -268,7 +268,7 @@ function ChatSidebar({ children }) {
 
 
 
-   
+
 
   return (
     <>
@@ -280,7 +280,7 @@ function ChatSidebar({ children }) {
       )}
 
       <div
-          className={`fixed md:relative left-0 z-50 w-full sm:w-72 
+        className={`fixed md:relative left-0 z-50 w-full sm:w-72 
             bg-background border-r border-border 
             flex flex-col h-full
             transition-transform duration-300 ease-in-out
@@ -289,9 +289,9 @@ function ChatSidebar({ children }) {
       >
         <div className="p-3 sm:p-4 border-b border-border bg-muted/30">
           <div className="flex items-center gap-2 mb-2">
-            <Button 
-              onClick={handleNewChat} 
-              className="flex-1 h-9 text-sm font-medium" 
+            <Button
+              onClick={handleNewChat}
+              className="flex-1 h-9 text-sm font-medium"
               size="sm"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -316,7 +316,7 @@ function ChatSidebar({ children }) {
               <X className="w-4 h-4" />
             </Button>
           </div>
-          
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -341,8 +341,8 @@ function ChatSidebar({ children }) {
                 {showFavoritesOnly ? "No favorite chats" : "No chats yet"}
               </p>
               <p className="text-xs text-muted-foreground">
-                {showFavoritesOnly 
-                  ? "Star chats to see them here" 
+                {showFavoritesOnly
+                  ? "Star chats to see them here"
                   : "Start a new conversation to begin"}
               </p>
             </div>
@@ -351,31 +351,28 @@ function ChatSidebar({ children }) {
               {filteredChats.map((chat) => {
                 const chatId = chat.id || chat._id;
                 const isActive = (currentChat?.id || currentChat?._id) === chatId;
-                const preview = chat.preview || 
-                  (chat.messages && chat.messages.length > 0 
-                    ? chat.messages[chat.messages.length - 1]?.content?.substring(0, 60) 
+                const preview = chat.preview ||
+                  (chat.messages && chat.messages.length > 0
+                    ? chat.messages[chat.messages.length - 1]?.content?.substring(0, 60)
                     : "") || "";
 
                 return (
                   <div
                     key={chatId}
                     onClick={() => handleSelectChat(chat)}
-                    className={`group relative p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                      isActive 
-                        ? "bg-primary/10 border border-primary/20 shadow-sm" 
-                        : "hover:bg-muted/50 border border-transparent"
-                    }`}
+                    className={`group relative p-3 rounded-lg cursor-pointer transition-all duration-200 ${isActive
+                      ? "bg-primary/10 border border-primary/20 shadow-sm"
+                      : "hover:bg-muted/50 border border-transparent"
+                      }`}
                   >
                     <div className="flex items-start gap-2">
-                      <MessageSquare className={`w-4 h-4 mt-0.5 shrink-0 ${
-                        isActive ? "text-primary" : "text-muted-foreground"
-                      }`} />
-                      
+                      <MessageSquare className={`w-4 h-4 mt-0.5 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"
+                        }`} />
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className={`text-sm font-medium truncate ${
-                            isActive ? "text-primary" : "text-foreground"
-                          }`}>
+                          <h3 className={`text-sm font-medium truncate ${isActive ? "text-primary" : "text-foreground"
+                            }`}>
                             {chat.title || "Untitled Chat"}
                           </h3>
                           {chat.isShared && (
@@ -392,21 +389,19 @@ function ChatSidebar({ children }) {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <div className="flex items-center gap-1 opacity-100 shrink-0">
                         <button
                           onClick={(e) => handleStarChat(e, chatId, chat.isStarred)}
-                          className={`p-1.5 rounded hover:bg-muted transition-colors ${
-                            chat.isStarred ? "opacity-100" : ""
-                          }`}
+                          className={`p-1.5 rounded hover:bg-muted transition-colors ${chat.isStarred ? "opacity-100" : ""
+                            }`}
                           title={chat.isStarred ? "Unstar" : "Star"}
                         >
-                          <Star className={`w-4 h-4 transition-colors ${
-                            chat.isStarred 
-                              ? "text-yellow-500 fill-yellow-500" 
-                              : "text-muted-foreground"
-                          }`} />
+                          <Star className={`w-4 h-4 transition-colors ${chat.isStarred
+                            ? "text-yellow-500 fill-yellow-500"
+                            : "text-muted-foreground"
+                            }`} />
                         </button>
-                        
+
                         <div className="relative group/menu">
                           <button
                             onClick={(e) => {
@@ -426,7 +421,7 @@ function ChatSidebar({ children }) {
                           >
                             <MoreVertical className="w-4 h-4 text-muted-foreground" />
                           </button>
-                          
+
                           <div className="chat-menu hidden absolute right-0 top-full mt-1 bg-background border border-border rounded-lg shadow-lg z-50 min-w-[160px] overflow-hidden">
                             {chat.isShared ? (
                               <button
@@ -470,7 +465,7 @@ function ChatSidebar({ children }) {
               })}
             </div>
           )}
-          
+
           {pagination?.hasMore && filteredChats.length > 0 && (
             <div className="p-4 border-t border-border">
               <Button
