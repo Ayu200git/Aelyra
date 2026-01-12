@@ -8,11 +8,11 @@ export const fetchChats = createAsyncThunk(
   async ({ search = '', page = 1, append = false } = {}, { rejectWithValue }) => {
     const trimmedSearch = search.trim();
     const requestKey = `${trimmedSearch}-${page}-${append}`;
-  
+
     if (fetchChatsPromise && fetchChatsPromise.key === requestKey) {
       return fetchChatsPromise.promise;
     }
-    
+
     try {
       const promise = api.get('/api/chat/history', {
         params: {
@@ -24,16 +24,16 @@ export const fetchChats = createAsyncThunk(
         const data = response.data.data || response.data;
         const chats = data.chats || [];
         const pagination = data.pagination || {};
-        
+
         const normalizedChats = chats.map(chat => ({ ...chat, id: chat._id || chat.id }));
-        
+
         return {
           chats: normalizedChats,
           pagination,
-          append,  
+          append,
         };
       });
-      
+
       fetchChatsPromise = { key: requestKey, promise };
       const result = await promise;
       fetchChatsPromise = null;
@@ -62,7 +62,7 @@ export const fetchChat = createAsyncThunk(
   'chat/fetchChat',
   async (chatId, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/chat/${chatId}`);
+      const response = await api.get(`/api/chat/${chatId}`);
       const chat = response.data.data?.chat || response.data.chat;
       return { ...chat, id: chat._id || chat.id };
     } catch (error) {
@@ -75,7 +75,7 @@ export const deleteChat = createAsyncThunk(
   'chat/deleteChat',
   async (chatId, { rejectWithValue }) => {
     try {
-      await api.delete(`/chat/${chatId}`);
+      await api.delete(`/api/chat/${chatId}`);
       return chatId;
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || error.message || 'Failed to delete chat');
@@ -152,7 +152,7 @@ export const sendMessage = createAsyncThunk(
         formData.append('chatId', chatId);
         formData.append('image', imageFile);
         body = formData;
-        headers = {}; 
+        headers = {};
       } else {
         body = JSON.stringify({ message, chatId });
       }
@@ -222,10 +222,10 @@ const chatSlice = createSlice({
     },
     addUserMessage: (state, action) => {
       const { chatId, message, imageUrl } = action.payload;
-      if (state.currentChat && 
-          ((state.currentChat._id || state.currentChat.id) === chatId ||
-           state.currentChat._id === chatId ||
-           state.currentChat.id === chatId)) {
+      if (state.currentChat &&
+        ((state.currentChat._id || state.currentChat.id) === chatId ||
+          state.currentChat._id === chatId ||
+          state.currentChat.id === chatId)) {
         state.currentChat.messages.push({
           role: 'user',
           content: message,
@@ -235,10 +235,10 @@ const chatSlice = createSlice({
     },
     updateStreamingMessage: (state, action) => {
       const { chatId, content } = action.payload;
-      if (state.currentChat && 
-          ((state.currentChat._id || state.currentChat.id) === chatId ||
-           state.currentChat._id === chatId ||
-           state.currentChat.id === chatId)) {
+      if (state.currentChat &&
+        ((state.currentChat._id || state.currentChat.id) === chatId ||
+          state.currentChat._id === chatId ||
+          state.currentChat.id === chatId)) {
         const lastMessage = state.currentChat.messages[state.currentChat.messages.length - 1];
         if (lastMessage && lastMessage.role === 'assistant') {
           lastMessage.content = content;
@@ -253,10 +253,10 @@ const chatSlice = createSlice({
     },
     finalizeMessage: (state, action) => {
       const { chatId, content } = action.payload;
-      if (state.currentChat && 
-          ((state.currentChat._id || state.currentChat.id) === chatId ||
-           state.currentChat._id === chatId ||
-           state.currentChat.id === chatId)) {
+      if (state.currentChat &&
+        ((state.currentChat._id || state.currentChat.id) === chatId ||
+          state.currentChat._id === chatId ||
+          state.currentChat.id === chatId)) {
         const messages = state.currentChat.messages;
         const lastMessage = messages[messages.length - 1];
         if (lastMessage && lastMessage.role === 'assistant') {
@@ -272,10 +272,10 @@ const chatSlice = createSlice({
     },
     removeLastAssistantMessage: (state, action) => {
       const { chatId } = action.payload;
-      if (state.currentChat && 
-          ((state.currentChat._id || state.currentChat.id) === chatId ||
-           state.currentChat._id === chatId ||
-           state.currentChat.id === chatId)) {
+      if (state.currentChat &&
+        ((state.currentChat._id || state.currentChat.id) === chatId ||
+          state.currentChat._id === chatId ||
+          state.currentChat.id === chatId)) {
         const messages = state.currentChat.messages;
         if (messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
           messages.pop();
@@ -306,14 +306,14 @@ const chatSlice = createSlice({
       .addCase(fetchChats.fulfilled, (state, action) => {
         state.loading = false;
         const { chats, pagination, append } = action.payload;
-        
+
         if (append) {
           state.chats = [...state.chats, ...chats];
         } else {
           state.chats = chats;
-          state.chatsFetched = true; 
+          state.chatsFetched = true;
         }
-        
+
         if (pagination) {
           state.pagination = pagination;
         }
@@ -343,43 +343,43 @@ const chatSlice = createSlice({
       })
       .addCase(deleteChat.fulfilled, (state, action) => {
         const chatId = action.payload;
-        state.chats = state.chats.filter((chat) => 
-          (chat._id || chat.id) !== (chatId._id || chatId) && 
-          chat._id !== chatId && 
+        state.chats = state.chats.filter((chat) =>
+          (chat._id || chat.id) !== (chatId._id || chatId) &&
+          chat._id !== chatId &&
           chat.id !== chatId
         );
-        if (state.currentChat && 
-            ((state.currentChat._id || state.currentChat.id) === (chatId._id || chatId) ||
-             state.currentChat._id === chatId ||
-             state.currentChat.id === chatId)) {
+        if (state.currentChat &&
+          ((state.currentChat._id || state.currentChat.id) === (chatId._id || chatId) ||
+            state.currentChat._id === chatId ||
+            state.currentChat.id === chatId)) {
           state.currentChat = null;
         }
       })
       .addCase(updateChat.fulfilled, (state, action) => {
         const updated = action.payload;
         const chatId = updated._id || updated.id;
-        const index = state.chats.findIndex((chat) => 
+        const index = state.chats.findIndex((chat) =>
           (chat._id || chat.id) === chatId
         );
         if (index !== -1) {
           state.chats[index] = updated;
         }
-        if (state.currentChat && 
-            ((state.currentChat._id || state.currentChat.id) === chatId)) {
+        if (state.currentChat &&
+          ((state.currentChat._id || state.currentChat.id) === chatId)) {
           state.currentChat = updated;
         }
       })
       .addCase(toggleStarChat.fulfilled, (state, action) => {
         const updated = action.payload;
         const chatId = updated._id || updated.id;
-        const idx = state.chats.findIndex((c) => 
+        const idx = state.chats.findIndex((c) =>
           (c._id || c.id) === chatId
         );
         if (idx !== -1) {
           state.chats[idx] = updated;
         }
-        if (state.currentChat && 
-            ((state.currentChat._id || state.currentChat.id) === chatId)) {
+        if (state.currentChat &&
+          ((state.currentChat._id || state.currentChat.id) === chatId)) {
           state.currentChat = updated;
         }
       })

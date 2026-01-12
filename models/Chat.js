@@ -54,7 +54,7 @@ const chatSchema = new mongoose.Schema(
 );
 
 chatSchema.index({ user: 1, updatedAt: -1 });
-chatSchema.index({ shareToken: 1 }, { unique: true, sparse: true });
+
 
 chatSchema.methods.generateShareToken = function () {
   const token = require('crypto').randomBytes(20).toString('hex');

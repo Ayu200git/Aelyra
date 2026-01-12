@@ -35,16 +35,16 @@ export const createChat = async (req, res) => {
 export const getChatHistory = async (req, res) => {
   try {
     const userId = req.user.id || req.user._id;
-    const { q, page = 1, limit = 20 } = req.query;  
+    const { q, page = 1, limit = 20 } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
-    
+
     let query = { user: userId };
     if (q && q.trim()) {
       query.$text = { $search: q.trim() };
     }
-    
+
     const totalCount = await Chat.countDocuments(query);
     const chats = await Chat.find(query)
       .sort(q ? { score: { $meta: 'textScore' } } : { updatedAt: -1 })
@@ -54,10 +54,10 @@ export const getChatHistory = async (req, res) => {
       .lean();
 
     const chatsWithPreview = chats.map(chat => {
-      const lastMessage = chat.messages && chat.messages.length > 0 
+      const lastMessage = chat.messages && chat.messages.length > 0
         ? chat.messages[chat.messages.length - 1]
         : null;
-      
+
       return {
         _id: chat._id,
         title: chat.title,
@@ -132,7 +132,7 @@ export const sendMessage = async (req, res) => {
         error: 'Message is required',
       });
     }
-    
+
     let chat = null;
 
     if (chatId) {
@@ -165,7 +165,7 @@ export const sendMessage = async (req, res) => {
       typeof aiResponseResult === 'string'
         ? aiResponseResult
         : aiResponseResult?.message ||
-          aiResponseResult?.choices?.[0]?.message?.content;
+        aiResponseResult?.choices?.[0]?.message?.content;
 
     if (!aiMessage) {
       throw new Error('Invalid AI response');
@@ -293,7 +293,7 @@ export const deleteChat = async (req, res) => {
 
 export const shareChat = async (req, res) => {
   try {
-    const chatId = req.params.id;
+    const chatId = req.params.chatId;
     const shareToken = crypto.randomBytes(16).toString('hex');
     const chat = await Chat.findByIdAndUpdate(
       chatId,
