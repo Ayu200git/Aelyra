@@ -35,6 +35,17 @@ function ChatSidebar({ children }) {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [sidebarOpen]);
+
   const debouncedSearch = useCallback((query) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
@@ -255,16 +266,7 @@ function ChatSidebar({ children }) {
     return <div className="p-4 text-center text-gray-500">No chat history</div>;
   }
 
-  useEffect(() => {
-    if (sidebarOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [sidebarOpen]);
+
 
    
 
