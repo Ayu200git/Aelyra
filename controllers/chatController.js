@@ -233,21 +233,22 @@ export const updateChat = async (req, res) => {
     }
 
     const allowedUpdates = ['title', 'isStarred', 'tags', 'isShared'];
-    const updateFields = {};
-    allowedUpdates.forEach(field => {
-      if (updates[field] !== undefined) {
-        updateFields[field] = updates[field];
-      }
-    });
 
-    if (Object.keys(updateFields).length === 0) {
+    const hasValidUpdates = allowedUpdates.some(field => updates[field] !== undefined);
+
+    if (!hasValidUpdates) {
       return res.status(StatusCodes.BAD_REQUEST).json({
         success: false,
         error: 'No valid fields to update',
       });
     }
 
-    Object.assign(chat, updateFields);
+    allowedUpdates.forEach(field => {
+      if (updates[field] !== undefined) {
+        chat[field] = updates[field];
+      }
+    });
+
     await chat.save();
 
     res.status(StatusCodes.OK).json({
